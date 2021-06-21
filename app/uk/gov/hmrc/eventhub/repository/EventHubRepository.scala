@@ -36,9 +36,6 @@ class EventHubRepository @Inject()(mongo: MongoComponent)(implicit ec: Execution
   domainFormat   = MongoEvent.fmt,
   indexes        = Seq()
 ){
-//  def saveEvent(event: Event): Future[InsertOneResult] = collection.insertOne(MongoEvent(event)).toFuture()
-//  def findEventByMessageId(messageId: UUID): Future[MongoEvent] =
-//  collection.find(equal("event.messageId", messageId.toString)).first().toFuture()
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 

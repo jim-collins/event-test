@@ -29,21 +29,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class EventHubController @Inject()(val controllerComponents: ControllerComponents,
                                    eventService: PublishEventService)
                                   (implicit ec: ExecutionContext)extends BaseController with PlayIO {
-//
-//  def publishEvent(topic: String) = Action.async(parse.json) { implicit request =>
-//    val event: JsResult[Event] = request.body.validate[Event]
-//    event.fold(
-//      errors => {
-//        Future.successful(BadRequest(Json.obj("message" -> JsError.toJson(errors))))
-//      },
-//      e => {
-//        eventService.processEvent(topic, e).map{ r =>
-//          if ( r == SaveError) InternalServerError
-//          else Created(s"$r")
-//        }
-//      }
-//    )
-//  }
 
   def publishEvent(topic: String) = Action.async(parse.json) { implicit request =>
     val event: JsResult[Event] = request.body.validate[Event]

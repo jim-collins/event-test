@@ -69,23 +69,4 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository, @Nam
     case _ => IO.pure(status)
   }
 
-
-//  def isNewEventWithSubscibers(topic: String, event: Event): Future[PublishStatus] =
-//    eventSubscribers.get(topic) match {
-//      case None => Future.successful(NoSubscribers)
-//      case Some(value) => eventHubRepository.findEventByMessageId(event.messageId).map {
-//        {
-//          case null => FoundSubscribers(value)
-//          case _ => DuplicateEvent
-//        }
-//      }
-//    }
-
-//  def saveEvent(status: PublishStatus, event: Event): Future[PublishStatus] = status match {
-//    case FoundSubscribers(v) => eventHubRepository.saveEvent(event).map { res =>
-//      if (res.wasAcknowledged()) PublishEvent(v)
-//      else SaveError
-//    }
-//    case _ => Future.successful(status)
-//  }
 }
