@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.eventhub.repository
 
+import cats.effect.{ContextShift, IO}
 import org.mongodb.scala.model.Filters.equal
 import org.mongodb.scala.{FindObservable, Observer, SingleObservable}
 import org.mongodb.scala.result.InsertOneResult
@@ -35,16 +36,17 @@ class EventHubRepository @Inject()(mongo: MongoComponent)(implicit ec: Execution
   domainFormat   = MongoEvent.fmt,
   indexes        = Seq()
 ){
+//  def saveEvent(event: Event): Future[InsertOneResult] = collection.insertOne(MongoEvent(event)).toFuture()
+//  def findEventByMessageId(messageId: UUID): Future[MongoEvent] =
+//  collection.find(equal("event.messageId", messageId.toString)).first().toFuture()
 
+  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-  def saveEvent(event: Event): Future[InsertOneResult] = collection.insertOne(MongoEvent(event)).toFuture()
+  def saveEvent(event: Event): IO[InsertOneResult] = IO.fromFuture{IO{collection.insertOne(MongoEvent(event)).head()}}
 
-  def findEventByMessageId(messageId: UUID): Future[MongoEvent] =
-    collection.find(equal("event.messageId", messageId.toString)).first().toFuture()
-
-
-
-
+  def findEventByMessageId(messageId: UUID): IO[Option[MongoEvent]] = {
+  IO.fromFuture(IO{collection.find(equal("event.messageId", messageId.toString)).first().headOption()})
+  }
 }
 
 

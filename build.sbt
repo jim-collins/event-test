@@ -1,4 +1,4 @@
-import sbt.Resolver
+ import sbt.Resolver
 
 name := """event-hub"""
 organization := "uk.gov.hmrc"
@@ -9,6 +9,7 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 scalaVersion := "2.12.12"
 
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.5.1"
 libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test
 libraryDependencies += guice
 
@@ -22,6 +23,15 @@ resolvers ++= Seq(
   Resolver.bintrayRepo("jetbrains", "markdown"),
   "bintray-djspiewak-maven" at "https://dl.bintray.com/djspiewak/maven"
 )
+
+ scalacOptions ++= Seq(
+   "-feature",
+   "-deprecation",
+   "-unchecked",
+   "-language:postfixOps",
+   "-language:higherKinds",
+   "-Ypartial-unification")
+
 
 // Adds additional packages into Twirl
 //TwirlKeys.templateImports += "uk.gov.hmrc.controllers._"

@@ -16,23 +16,37 @@
 
 package uk.gov.hmrc.eventhub.controllers
 
-import play.api.libs.json.{JsError, Json}
-import play.api.mvc.{ BaseController, ControllerComponents}
+import cats.effect.IO
+import play.api.libs.json.{JsError, JsResult, JsValue, Json}
+import play.api.mvc.{Action, ActionBuilder, AnyContent, AnyContentAsEmpty, BaseController, BaseControllerHelpers, BodyParser, BodyParsers, ControllerComponents, Request, Result}
 import uk.gov.hmrc.eventhub.model.{Event, SaveError, Subscriber}
 import uk.gov.hmrc.eventhub.service.PublishEventService
 
 import javax.inject.{Inject, Named, Singleton}
-
-
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class EventHubController @Inject()(val controllerComponents: ControllerComponents,
                                    eventService: PublishEventService)
-                                  (implicit ec: ExecutionContext)extends BaseController {
+                                  (implicit ec: ExecutionContext)extends BaseController with PlayIO {
+//
+//  def publishEvent(topic: String) = Action.async(parse.json) { implicit request =>
+//    val event: JsResult[Event] = request.body.validate[Event]
+//    event.fold(
+//      errors => {
+//        Future.successful(BadRequest(Json.obj("message" -> JsError.toJson(errors))))
+//      },
+//      e => {
+//        eventService.processEvent(topic, e).map{ r =>
+//          if ( r == SaveError) InternalServerError
+//          else Created(s"$r")
+//        }
+//      }
+//    )
+//  }
 
   def publishEvent(topic: String) = Action.async(parse.json) { implicit request =>
-    val event = request.body.validate[Event]
+    val event: JsResult[Event] = request.body.validate[Event]
     event.fold(
       errors => {
         Future.successful(BadRequest(Json.obj("message" -> JsError.toJson(errors))))
@@ -42,7 +56,7 @@ class EventHubController @Inject()(val controllerComponents: ControllerComponent
           if ( r == SaveError) InternalServerError
           else Created(s"$r")
         }
-      }
+      }.unsafeToFuture()
     )
   }
 
@@ -54,7 +68,23 @@ class EventHubController @Inject()(val controllerComponents: ControllerComponent
     }
   }
 
-  def index = Action {
-    Ok(views.html.index())
+  def index = Action.async {implicit request =>
+    Future.successful(Accepted)
+  }
+
+  def indexIO = Action.io{implicit request =>
+
+    IO.pure(Accepted)
+  }
+}
+
+trait PlayIO { self: BaseControllerHelpers =>
+  implicit class IOActionBuilder[A](actionBuilder: ActionBuilder[Request, A]) {
+    def io(block: Request[A] => IO[Result]): Action[A] = {
+      actionBuilder.apply(block.andThen(_.unsafeRunSync()))
+    }
+    def parseIO(bodyParser: BodyParser[A])(block: Request[A] => IO[Result]): Action[A] = {
+      actionBuilder.apply(bodyParser)(block.andThen(_.unsafeRunSync()))
+    }
   }
 }

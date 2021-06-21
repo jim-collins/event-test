@@ -17,10 +17,12 @@
 package uk.gov.hmrc.eventhub.service
 
 import akka.actor.ActorRef
+import cats.effect.IO
 import com.mongodb.client.result.InsertOneResult
 import org.mongodb.scala.{Observer, SingleObservable}
 import org.mongodb.scala.result.InsertOneResult
-import uk.gov.hmrc.eventhub.actors.EventActor.{SendEvents}
+import uk.gov.hmrc.eventhub.actors.EventActor.SendEvents
+import uk.gov.hmrc.eventhub.model
 import uk.gov.hmrc.eventhub.model.{DuplicateEvent, Event, FoundSubscribers, MongoEvent, NoSubscribers, PublishEvent, PublishStatus, SaveError, Subscriber}
 import uk.gov.hmrc.eventhub.repository.EventHubRepository
 
@@ -34,7 +36,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PublishEventService @Inject()(eventHubRepository: EventHubRepository, @Named("eventSubscribers") eventSubscribers: Map[String, List[Subscriber]],
                                     @Named("event-actor") eventActor: ActorRef ) {
 
-  def processEvent(topic: String, event: Event): Future[PublishStatus] =
+  def processEvent(topic: String, event: Event): IO[PublishStatus] =
     for {
       a <- isNewEventWithSubscibers(topic, event)
       b <- saveEvent(a, event)
@@ -47,27 +49,43 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository, @Nam
     }
 
 
-
-
-  def isNewEventWithSubscibers(topic: String, event: Event): Future[PublishStatus] =
+  def isNewEventWithSubscibers(topic: String, event: Event): IO[PublishStatus] =
     eventSubscribers.get(topic) match {
-      case None => Future.successful(NoSubscribers)
-      case Some(value) => eventHubRepository.findEventByMessageId(event.messageId).map {
-        {
-          case null => FoundSubscribers(value)
-          case _ => DuplicateEvent
-        }
-      }
+      case None => IO.pure(NoSubscribers)
+      case Some(value) =>
+        for {
+        possiblyEvent <- eventHubRepository.findEventByMessageId(event.messageId)
+        result = if(possiblyEvent.isEmpty) FoundSubscribers(value) else DuplicateEvent
+        } yield (result)
     }
 
-
-  def saveEvent(status: PublishStatus, event: Event): Future[PublishStatus] = status match {
-    case FoundSubscribers(v) => eventHubRepository.saveEvent(event).map { res =>
-      if (res.wasAcknowledged()) PublishEvent(v)
-      else SaveError
-    }
-    case _ => Future.successful(status)
+  def saveEvent(status: PublishStatus, event: Event): IO[PublishStatus] = status match {
+    case FoundSubscribers(v) =>
+      for {
+        inserted <- eventHubRepository.saveEvent(event)
+        success = inserted.wasAcknowledged()
+        status = if(success) PublishEvent(v) else SaveError
+      } yield (status)
+    case _ => IO.pure(status)
   }
 
 
+//  def isNewEventWithSubscibers(topic: String, event: Event): Future[PublishStatus] =
+//    eventSubscribers.get(topic) match {
+//      case None => Future.successful(NoSubscribers)
+//      case Some(value) => eventHubRepository.findEventByMessageId(event.messageId).map {
+//        {
+//          case null => FoundSubscribers(value)
+//          case _ => DuplicateEvent
+//        }
+//      }
+//    }
+
+//  def saveEvent(status: PublishStatus, event: Event): Future[PublishStatus] = status match {
+//    case FoundSubscribers(v) => eventHubRepository.saveEvent(event).map { res =>
+//      if (res.wasAcknowledged()) PublishEvent(v)
+//      else SaveError
+//    }
+//    case _ => Future.successful(status)
+//  }
 }
